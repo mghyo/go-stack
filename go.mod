@@ -1,3 +1,3 @@
-module go-stack
+module github.com/mghyo/go-stack
 
-go 1.24
+go 1.18
