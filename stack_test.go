@@ -3,7 +3,9 @@ package stack
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestNew(t *testing.T) {
@@ -366,5 +368,188 @@ func BenchmarkSize(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		s.Size()
+	}
+}
+
+func TestRaceConditions(t *testing.T) {
+	t.Run("concurrent push/pop/peek/size", func(t *testing.T) {
+		s := New[int]()
+		const numGoroutines = 50
+		const numOperations = 200
+
+		var wg sync.WaitGroup
+
+		// Concurrent pushes
+		for i := 0; i < numGoroutines; i++ {
+			wg.Add(1)
+			go func(start int) {
+				defer wg.Done()
+				for j := 0; j < numOperations; j++ {
+					s.Push(start*numOperations + j)
+				}
+			}(i)
+		}
+
+		// Concurrent pops
+		for i := 0; i < numGoroutines/2; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for j := 0; j < numOperations/2; j++ {
+					s.Pop() // Ignore errors for this test
+				}
+			}()
+		}
+
+		// Concurrent peeks
+		for i := 0; i < numGoroutines/4; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for j := 0; j < numOperations; j++ {
+					s.Peek() // Ignore errors
+				}
+			}()
+		}
+
+		// Concurrent size checks
+		for i := 0; i < numGoroutines/4; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for j := 0; j < numOperations; j++ {
+					s.Size()
+				}
+			}()
+		}
+
+		wg.Wait()
+
+		// Just verify no panics occurred and stack is in valid state
+		size := s.Size()
+		if size < 0 {
+			t.Errorf("Invalid size after concurrent operations: %d", size)
+		}
+	})
+
+	t.Run("rapid push/pop cycles", func(t *testing.T) {
+		s := New[int]()
+		const numGoroutines = 100
+		const cycles = 1000
+
+		var wg sync.WaitGroup
+
+		for i := 0; i < numGoroutines; i++ {
+			wg.Add(1)
+			go func(id int) {
+				defer wg.Done()
+				for j := 0; j < cycles; j++ {
+					// Push then immediately try to pop
+					s.Push(id*cycles + j)
+					s.Pop() // May succeed or fail, both are valid
+				}
+			}(i)
+		}
+
+		wg.Wait()
+
+		// Stack should be in a valid state
+		size := s.Size()
+		if size < 0 {
+			t.Errorf("Invalid size after rapid cycles: %d", size)
+		}
+	})
+
+	t.Run("capacity-limited concurrent access", func(t *testing.T) {
+		s := New[int](WithCapacity[int](10))
+		const numGoroutines = 50
+		const attempts = 100
+
+		var wg sync.WaitGroup
+		var pushCount, popCount int64
+
+		// Many goroutines trying to push
+		for i := 0; i < numGoroutines; i++ {
+			wg.Add(1)
+			go func(id int) {
+				defer wg.Done()
+				for j := 0; j < attempts; j++ {
+					err := s.Push(id*attempts + j)
+					if err == nil {
+						atomic.AddInt64(&pushCount, 1)
+					}
+				}
+			}(i)
+		}
+
+		// Some goroutines trying to pop
+		for i := 0; i < numGoroutines/2; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for j := 0; j < attempts/2; j++ {
+					_, err := s.Pop()
+					if err == nil {
+						atomic.AddInt64(&popCount, 1)
+					}
+				}
+			}()
+		}
+
+		wg.Wait()
+
+		// Verify consistency
+		finalSize := int64(s.Size())
+		expectedSize := pushCount - popCount
+
+		if finalSize != expectedSize {
+			t.Errorf("Size inconsistency: got %d, expected %d (pushed: %d, popped: %d)",
+				finalSize, expectedSize, pushCount, popCount)
+		}
+
+		// Size should never exceed capacity
+		if finalSize > 10 {
+			t.Errorf("Size exceeded capacity: %d > 10", finalSize)
+		}
+	})
+}
+
+func TestStressTest(t *testing.T) {
+
+	s := New[int]()
+	const duration = 1000 * time.Millisecond
+	const numWorkers = 20
+
+	var wg sync.WaitGroup
+	start := time.Now()
+
+	// Continuous operations for the duration
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
+			counter := 0
+			for time.Since(start) < duration {
+				switch counter % 4 {
+				case 0:
+					s.Push(workerID*10000 + counter)
+				case 1:
+					s.Pop()
+				case 2:
+					s.Peek()
+				case 3:
+					s.Size()
+				}
+				counter++
+			}
+		}(i)
+	}
+
+	wg.Wait()
+
+	// Just verify the stack is in a valid state
+	size := s.Size()
+	if size < 0 {
+		t.Errorf("Invalid final size: %d", size)
 	}
 }
