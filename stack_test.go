@@ -193,8 +193,8 @@ func TestUnlimitedCapacity(t *testing.T) {
 func TestDifferentTypes(t *testing.T) {
 	t.Run("string stack", func(t *testing.T) {
 		s := New[string]()
-		s.Push("first")
-		s.Push("second")
+		_ = s.Push("first")
+		_ = s.Push("second")
 
 		val, _ := s.Pop()
 		if val != "second" {
@@ -210,7 +210,7 @@ func TestDifferentTypes(t *testing.T) {
 
 		s := New[Person]()
 		person := Person{Name: "Alice", Age: 30}
-		s.Push(person)
+		_ = s.Push(person)
 
 		val, err := s.Pop()
 		if err != nil {
@@ -235,7 +235,7 @@ func TestConcurrency(t *testing.T) {
 		go func(start int) {
 			defer wg.Done()
 			for j := 0; j < numOperations; j++ {
-				s.Push(start*numOperations + j)
+				_ = s.Push(start*numOperations + j)
 			}
 		}(i)
 	}
@@ -332,7 +332,7 @@ func BenchmarkPush(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		s.Push(i)
+		_ = s.Push(i)
 	}
 }
 
@@ -340,29 +340,29 @@ func BenchmarkPop(b *testing.B) {
 	s := New[int]()
 	// Pre-populate stack
 	for i := 0; i < b.N; i++ {
-		s.Push(i)
+		_ = s.Push(i)
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		s.Pop()
+		_, _ = s.Pop()
 	}
 }
 
 func BenchmarkPeek(b *testing.B) {
 	s := New[int]()
-	s.Push(42)
+	_ = s.Push(42)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		s.Peek()
+		_, _ = s.Peek()
 	}
 }
 
 func BenchmarkSize(b *testing.B) {
 	s := New[int]()
 	for i := 0; i < 1000; i++ {
-		s.Push(i)
+		_ = s.Push(i)
 	}
 
 	b.ResetTimer()
@@ -385,7 +385,7 @@ func TestRaceConditions(t *testing.T) {
 			go func(start int) {
 				defer wg.Done()
 				for j := 0; j < numOperations; j++ {
-					s.Push(start*numOperations + j)
+					_ = s.Push(start*numOperations + j)
 				}
 			}(i)
 		}
@@ -396,7 +396,7 @@ func TestRaceConditions(t *testing.T) {
 			go func() {
 				defer wg.Done()
 				for j := 0; j < numOperations/2; j++ {
-					s.Pop() // Ignore errors for this test
+					_, _ = s.Pop() // Ignore errors for this test
 				}
 			}()
 		}
@@ -407,7 +407,7 @@ func TestRaceConditions(t *testing.T) {
 			go func() {
 				defer wg.Done()
 				for j := 0; j < numOperations; j++ {
-					s.Peek() // Ignore errors
+					_, _ = s.Peek() // Ignore errors
 				}
 			}()
 		}
@@ -445,8 +445,8 @@ func TestRaceConditions(t *testing.T) {
 				defer wg.Done()
 				for j := 0; j < cycles; j++ {
 					// Push then immediately try to pop
-					s.Push(id*cycles + j)
-					s.Pop() // May succeed or fail, both are valid
+					_ = s.Push(id*cycles + j)
+					_, _ = s.Pop() // May succeed or fail, both are valid
 				}
 			}(i)
 		}
@@ -532,11 +532,11 @@ func TestStressTest(t *testing.T) {
 			for time.Since(start) < duration {
 				switch counter % 4 {
 				case 0:
-					s.Push(workerID*10000 + counter)
+					_ = s.Push(workerID*10000 + counter)
 				case 1:
-					s.Pop()
+					_, _ = s.Pop()
 				case 2:
-					s.Peek()
+					_, _ = s.Peek()
 				case 3:
 					s.Size()
 				}
