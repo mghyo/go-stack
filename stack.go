@@ -1,24 +1,54 @@
+// Package stack provides a thread-safe, generic stack implementation with configurable capacity limits.
+//
+// The stack follows LIFO (Last-In-First-Out) semantics and supports any type through Go generics.
+// All operations are safe for concurrent use across multiple goroutines.
+//
+// Example usage:
+//
+//	s := stack.New[int]()
+//	s.Push(1)
+//	s.Push(2)
+//	val, err := s.Pop() // returns 2, nil
 package stack
 
 import (
 	"sync"
 )
 
+// Stack defines the interface for a generic stack data structure.
+// All operations are thread-safe and support any type T.
 type Stack[T any] interface {
+	// Push adds an item to the top of the stack.
+	// Returns ErrOverflow if the stack is at capacity.
 	Push(val T) error
+
+	// Pop removes and returns the top item from the stack.
+	// Returns ErrUnderflow if the stack is empty.
 	Pop() (T, error)
+
+	// Size returns the current number of items in the stack.
 	Size() int
+
+	// Peek returns the top item without removing it from the stack.
+	// Returns ErrUnderflow if the stack is empty.
 	Peek() (T, error)
+}
+
+// New creates a new stack with the specified options.
+// If no options are provided, creates an unlimited capacity stack.
+//
+// Example:
+//
+//	s := stack.New[int]()                           // Unlimited capacity
+//	s := stack.New[int](stack.WithCapacity[int](10)) // Capacity of 10
+func New[T any](opts ...Option[T]) Stack[T] {
+	return newStack(opts...)
 }
 
 type stack[T any] struct {
 	mu       sync.RWMutex
 	capacity int
 	items    []T
-}
-
-func New[T any](opts ...Option[T]) Stack[T] {
-	return newStack(opts...)
 }
 
 func newStack[T any](opts ...Option[T]) *stack[T] {
