@@ -2,8 +2,8 @@
 
 A thread-safe, generic LIFO stack implementation for Go with configurable capacity limits.
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/yourusername/go-stack.svg)](https://pkg.go.dev/github.com/yourusername/go-stack)
-[![Go Report Card](https://goreportcard.com/badge/github.com/yourusername/go-stack)](https://goreportcard.com/report/github.com/yourusername/go-stack)
+[![Go Reference](https://pkg.go.dev/badge/github.com/mghyo/go-stack.svg)](https://pkg.go.dev/github.com/mghyo/go-stack)
+[![Go Report Card](https://goreportcard.com/badge/github.com/mghyo/go-stack)](https://goreportcard.com/report/github.com/mghyo/go-stack)
 
 ## Features
 
@@ -16,7 +16,7 @@ A thread-safe, generic LIFO stack implementation for Go with configurable capaci
 ## Installation
 
 ```bash
-go get github.com/yourusername/go-stack
+go get github.com/mghyo/go-stack
 ```
 
 ## Quick Start
@@ -26,7 +26,7 @@ package main
 
 import (
     "fmt"
-    "github.com/yourusername/go-stack"
+    "github.com/mghyo/go-stack"
 )
 
 func main() {
